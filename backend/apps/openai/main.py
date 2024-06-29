@@ -1,40 +1,34 @@
-from fastapi import FastAPI, Request, Response, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
-
-import requests
-import aiohttp
 import asyncio
+import hashlib
 import json
 import logging
-
-from pydantic import BaseModel
-from starlette.background import BackgroundTask
-
-from apps.webui.models.models import Models
-from apps.webui.models.users import Users
-from constants import ERROR_MESSAGES
-from utils.utils import (
-    decode_token,
-    get_current_user,
-    get_verified_user,
-    get_admin_user,
-)
-from config import (
-    SRC_LOG_LEVELS,
-    ENABLE_OPENAI_API,
-    OPENAI_API_BASE_URLS,
-    OPENAI_API_KEYS,
-    CACHE_DIR,
-    ENABLE_MODEL_FILTER,
-    MODEL_FILTER_LIST,
-    AppConfig,
-)
+from pathlib import Path
 from typing import List, Optional
 
-
-import hashlib
-from pathlib import Path
+import aiohttp
+import requests
+from apps.webui.models.models import Models
+from config import (
+    CACHE_DIR,
+    ENABLE_MODEL_FILTER,
+    ENABLE_OPENAI_API,
+    MODEL_FILTER_LIST,
+    OPENAI_API_BASE_URLS,
+    OPENAI_API_KEYS,
+    SRC_LOG_LEVELS,
+    AppConfig,
+)
+from constants import ERROR_MESSAGES
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel
+from starlette.background import BackgroundTask
+from utils.utils import (
+    get_admin_user,
+    get_current_user,
+    get_verified_user,
+)
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["OPENAI"])
@@ -358,6 +352,10 @@ async def generate_chat_completion(
     model_id = form_data.get("model")
     model_info = Models.get_model_by_id(model_id)
 
+    model_id = "leagent"  # TODO: Remove this line after implementing LeAgent API
+    if model_id == "leagent":
+        return await handle_leagent_request(payload, user)
+
     if model_info:
         if model_info.base_model_id:
             payload["model"] = model_info.base_model_id
@@ -548,3 +546,31 @@ async def proxy(path: str, request: Request, user=Depends(get_verified_user)):
             if r:
                 r.close()
             await session.close()
+
+
+async def handle_leagent_request(payload, user):
+    user_message = payload["messages"][-1]["content"] if payload["messages"] else ""
+
+    async def event_generator():
+        async for message in leagent_processing(user_message, user):
+            if message == "TASK_DONE":
+                yield f"data: {json.dumps({'choices': [{'message': {'role': 'assistant', 'content': 'TASK_DONE'}}]})}\n\n"
+                break
+            yield f"data: {json.dumps({'choices': [{'delta': {'content': message}}]})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Type": "text/event-stream"},
+    )
+
+
+async def leagent_processing(content: str, user):
+    # Simulate the LeAgent processing
+    yield "LeAgent is processing your request...\n"
+    await asyncio.sleep(0.5)
+    yield f"LeAgent is analyzing your message: {content}\n"
+    await asyncio.sleep(0.5)
+    yield "LeAgent is processing...\n"
+    await asyncio.sleep(0.5)
+    yield "TASK_DONE"
