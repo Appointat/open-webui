@@ -566,11 +566,15 @@ async def handle_leagent_request(payload, user):
 
 
 async def leagent_processing(content: str, user):
-    # Simulate the LeAgent processing
-    yield "LeAgent is processing your request...\n"
-    await asyncio.sleep(0.5)
-    yield f"LeAgent is analyzing your message: {content}\n"
-    await asyncio.sleep(0.5)
-    yield "LeAgent is processing...\n"
-    await asyncio.sleep(0.5)
-    yield "TASK_DONE"
+    leagent_server_url = "http://localhost:8101/process"
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            leagent_server_url, json={"content": content, "user": user.dict()}
+        ) as response:
+            async for line in response.content:
+                if line:
+                    message = line.decode("utf-8").strip()
+                    if message == "TASK_DONE":
+                        yield message + "\n"
+                        break
+                    yield message
