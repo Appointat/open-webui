@@ -602,4 +602,4 @@ async def leagent_processing(content: str, user):
                     if message == "TASK_DONE":
                         yield message + "\n"
                         break
-                    yield message
+                    yield message + "\n"
