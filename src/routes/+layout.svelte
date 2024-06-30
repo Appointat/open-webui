@@ -18,6 +18,7 @@
 		USAGE_POOL
 	} from '$lib/stores';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { Toaster, toast } from 'svelte-sonner';
 
 	import { getBackendConfig } from '$lib/apis';
@@ -30,11 +31,14 @@
 
 	import { WEBUI_BASE_URL, WEBUI_HOSTNAME } from '$lib/constants';
 	import i18n, { initI18n, getLanguages } from '$lib/i18n';
+	import { bestMatchingLanguage } from '$lib/utils';
 
 	setContext('i18n', i18n);
 
 	let loaded = false;
 	const BREAKPOINT = 768;
+
+	let wakeLock = null;
 
 	onMount(async () => {
 		theme.set(localStorage.theme);
@@ -50,6 +54,34 @@
 
 		window.addEventListener('resize', onResize);
 
+		const setWakeLock = async () => {
+			try {
+				wakeLock = await navigator.wakeLock.request('screen');
+			} catch (err) {
+				// The Wake Lock request has failed - usually system related, such as battery.
+				console.log(err);
+			}
+
+			if (wakeLock) {
+				// Add a listener to release the wake lock when the page is unloaded
+				wakeLock.addEventListener('release', () => {
+					// the wake lock has been released
+					console.log('Wake Lock released');
+				});
+			}
+		};
+
+		if ('wakeLock' in navigator) {
+			await setWakeLock();
+
+			document.addEventListener('visibilitychange', async () => {
+				// Re-request the wake lock if the document becomes visible
+				if (wakeLock !== null && document.visibilityState === 'visible') {
+					await setWakeLock();
+				}
+			});
+		}
+
 		let backendConfig = null;
 		try {
 			backendConfig = await getBackendConfig();
@@ -61,12 +93,11 @@
 		// so `/error` can show something that's not `undefined`.
 
 		const languages = await getLanguages();
+		const browserLanguages = navigator.languages
+			? navigator.languages
+			: [navigator.language || navigator.userLanguage];
 
-		const browserLanguage = navigator.languages
-			? navigator.languages[0]
-			: navigator.language || navigator.userLanguage;
-
-		initI18n(languages.includes(browserLanguage) ? browserLanguage : backendConfig?.default_locale);
+		initI18n(bestMatchingLanguage(languages, browserLanguages, backendConfig.default_locale));
 
 		if (backendConfig) {
 			// Save Backend Status to Store
@@ -111,7 +142,11 @@
 						await goto('/auth');
 					}
 				} else {
-					await goto('/auth');
+					// Don't redirect if we're already on the auth page
+					// Needed because we pass in tokens from OAuth logins via URL fragments
+					if ($page.url.pathname !== '/auth') {
+						await goto('/auth');
+					}
 				}
 			}
 		} else {
