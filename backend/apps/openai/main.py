@@ -360,6 +360,10 @@ async def generate_chat_completion(
     model_id = form_data.get("model")
     model_info = Models.get_model_by_id(model_id)
 
+    model_id = "leagent"  # TODO: Remove this line after implementing LeAgent API
+    if model_id == "leagent":
+        return await handle_leagent_request(payload, user)
+
     if model_info:
         if model_info.base_model_id:
             payload["model"] = model_info.base_model_id
@@ -567,3 +571,35 @@ async def proxy(path: str, request: Request, user=Depends(get_verified_user)):
             if r:
                 r.close()
             await session.close()
+
+
+async def handle_leagent_request(payload, user):
+    user_message = payload["messages"][-1]["content"] if payload["messages"] else ""
+
+    async def event_generator():
+        async for message in leagent_processing(user_message, user):
+            if message == "TASK_DONE":
+                yield f"data: {json.dumps({'choices': [{'message': {'role': 'assistant', 'content': 'TASK_DONE'}}]})}\n\n"
+                break
+            yield f"data: {json.dumps({'choices': [{'delta': {'content': message}}]})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Type": "text/event-stream"},
+    )
+
+
+async def leagent_processing(content: str, user):
+    leagent_server_url = "http://localhost:8101/process"
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            leagent_server_url, json={"content": content, "user": user.dict()}
+        ) as response:
+            async for line in response.content:
+                if line:
+                    message = line.decode("utf-8").strip()
+                    if message == "TASK_DONE":
+                        yield message + "\n"
+                        break
+                    yield message
