@@ -288,6 +288,56 @@ async def get_all_models(raw: bool = False):
             )
         }
 
+        # Add leagent models
+        import time
+        current_time = int(time.time())
+        leagent_models = [
+            {
+                'id': 'leagent-lesson-planning',
+                'object': 'model',
+                'created': current_time,
+                'owned_by': 'leagent',
+                'name': 'leagent-lesson-planning',
+                'openai': {
+                    'id': 'leagent-lesson-planning',
+                    'object': 'model',
+                    'created': current_time,
+                    'owned_by': 'system'
+                },
+                'urlIdx': 0
+            },
+            {
+                'id': 'leagent-qa',
+                'object': 'model',
+                'created': current_time,
+                'owned_by': 'leagent',
+                'name': 'leagent-qa',
+                'openai': {
+                    'id': 'leagent-qa',
+                    'object': 'model',
+                    'created': current_time,
+                    'owned_by': 'system'
+                },
+                'urlIdx': 0
+            },
+            {
+                'id': 'leagent-evaluation',
+                'object': 'model',
+                'created': current_time,
+                'owned_by': 'leagent',
+                'name': 'leagent-evaluation',
+                'openai': {
+                    'id': 'leagent-evaluation',
+                    'object': 'model',
+                    'created': current_time,
+                    'owned_by': 'system'
+                },
+                'urlIdx': 0
+            }
+        ]
+
+        models["data"].extend(leagent_models)
+
         log.debug(f"models: {models}")
         app.state.MODELS = {model["id"]: model for model in models["data"]}
 

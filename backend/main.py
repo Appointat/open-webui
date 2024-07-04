@@ -835,56 +835,6 @@ async def get_all_models():
         openai_models = await get_openai_models()
         openai_models = openai_models["data"]
 
-		# Add new models of leagent
-        current_time = int(time.time())
-        leagent_models = [
-            {
-                "id": "leagent-lesson-planning",
-                "object": "model",
-                "created": current_time,
-                "owned_by": "leagent",
-                "name": "leagent-lesson-planning",
-                "openai": {
-                    "id": "leagent-lesson-planning",
-                    "object": "model",
-                    "created": current_time,
-                    "owned_by": "system",
-                },
-                "urlIdx": 0,
-            },
-            {
-                "id": "leagent-qa",
-                "object": "model",
-                "created": current_time,
-                "owned_by": "leagent",
-                "name": "leagent-qa",
-                "openai": {
-                    "id": "leagent-qa",
-                    "object": "model",
-                    "created": current_time,
-                    "owned_by": "system",
-                },
-                "urlIdx": 0,
-            },
-            {
-                "id": "leagent-evaluation",
-                "object": "model",
-                "created": current_time,
-                "owned_by": "leagent",
-                "name": "leagent-evaluation",
-                "openai": {
-                    "id": "leagent-evaluation",
-                    "object": "model",
-                    "created": current_time,
-                    "owned_by": "system",
-                },
-                "urlIdx": 0,
-            },
-        ]
-
-        openai_models.extend(leagent_models)
-
-
     if app.state.config.ENABLE_OLLAMA_API:
         ollama_models = await get_ollama_models()
         ollama_models = [
