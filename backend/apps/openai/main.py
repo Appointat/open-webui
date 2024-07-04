@@ -296,7 +296,7 @@ async def get_all_models(raw: bool = False):
                 'id': 'leagent-lesson-planning',
                 'object': 'model',
                 'created': current_time,
-                'owned_by': 'leagent',
+                'owned_by': 'openai',
                 'name': 'leagent-lesson-planning',
                 'openai': {
                     'id': 'leagent-lesson-planning',
@@ -310,7 +310,7 @@ async def get_all_models(raw: bool = False):
                 'id': 'leagent-qa',
                 'object': 'model',
                 'created': current_time,
-                'owned_by': 'leagent',
+                'owned_by': 'openai',
                 'name': 'leagent-qa',
                 'openai': {
                     'id': 'leagent-qa',
@@ -324,7 +324,7 @@ async def get_all_models(raw: bool = False):
                 'id': 'leagent-evaluation',
                 'object': 'model',
                 'created': current_time,
-                'owned_by': 'leagent',
+                'owned_by': 'openai',
                 'name': 'leagent-evaluation',
                 'openai': {
                     'id': 'leagent-evaluation',
@@ -410,8 +410,7 @@ async def generate_chat_completion(
     model_id = form_data.get("model")
     model_info = Models.get_model_by_id(model_id)
 
-    model_id = "leagent"  # TODO: Remove this line after implementing LeAgent API
-    if model_id == "leagent":
+    if model_id.lower().startswith("leagent"):
         return await handle_leagent_request(payload, user)
 
     if model_info:
@@ -624,10 +623,11 @@ async def proxy(path: str, request: Request, user=Depends(get_verified_user)):
 
 
 async def handle_leagent_request(payload, user):
+    model_id = payload.get("model")
     user_message = payload["messages"][-1]["content"] if payload["messages"] else ""
 
     async def event_generator():
-        async for message in leagent_processing(user_message, user):
+        async for message in leagent_processing(model_id, user_message, user):
             if message == "TASK_DONE":
                 yield f"data: {json.dumps({'choices': [{'message': {'role': 'assistant', 'content': 'TASK_DONE'}}]})}\n\n"
                 break
@@ -640,11 +640,11 @@ async def handle_leagent_request(payload, user):
     )
 
 
-async def leagent_processing(content: str, user):
+async def leagent_processing(model_id: str, content: str, user):
     leagent_server_url = "http://localhost:8101/process"
     async with aiohttp.ClientSession() as session:
         async with session.post(
-            leagent_server_url, json={"content": content, "user": user.dict()}
+            leagent_server_url, json={"model": model_id, "content": content, "user": user.dict()}
         ) as response:
             async for line in response.content:
                 if line:
