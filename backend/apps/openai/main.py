@@ -1,42 +1,34 @@
-from fastapi import FastAPI, Request, Response, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
-
-import requests
-import aiohttp
 import asyncio
+import hashlib
 import json
 import logging
-
-from pydantic import BaseModel
-from starlette.background import BackgroundTask
-
-from apps.webui.models.models import Models
-from apps.webui.models.users import Users
-from constants import ERROR_MESSAGES
-from utils.utils import (
-    decode_token,
-    get_verified_user,
-    get_verified_user,
-    get_admin_user,
-)
-from utils.task import prompt_template
-
-from config import (
-    SRC_LOG_LEVELS,
-    ENABLE_OPENAI_API,
-    OPENAI_API_BASE_URLS,
-    OPENAI_API_KEYS,
-    CACHE_DIR,
-    ENABLE_MODEL_FILTER,
-    MODEL_FILTER_LIST,
-    AppConfig,
-)
+from pathlib import Path
 from typing import List, Optional
 
-
-import hashlib
-from pathlib import Path
+import aiohttp
+import requests
+from apps.webui.models.models import Models
+from config import (
+    CACHE_DIR,
+    ENABLE_MODEL_FILTER,
+    ENABLE_OPENAI_API,
+    MODEL_FILTER_LIST,
+    OPENAI_API_BASE_URLS,
+    OPENAI_API_KEYS,
+    SRC_LOG_LEVELS,
+    AppConfig,
+)
+from constants import ERROR_MESSAGES
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel
+from starlette.background import BackgroundTask
+from utils.task import prompt_template
+from utils.utils import (
+    get_admin_user,
+    get_verified_user,
+)
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["OPENAI"])
@@ -288,55 +280,228 @@ async def get_all_models(raw: bool = False):
             )
         }
 
-        # Add leagent models
         import time
+
+        # Add Moonshot models
         current_time = int(time.time())
-        leagent_models = [
+        moonshot_models = [
             {
-                'id': 'leagent-lesson-planning',
-                'object': 'model',
-                'created': current_time,
-                'owned_by': 'openai',
-                'name': 'leagent-lesson-planning',
-                'openai': {
-                    'id': 'leagent-lesson-planning',
-                    'object': 'model',
-                    'created': current_time,
-                    'owned_by': 'system'
+                "id": "moonshot-v1-8k",
+                "object": "model",
+                "created": current_time,
+                "owned_by": "openai",
+                "name": "moonshot-v1-8k",
+                "openai": {
+                    "id": "moonshot-v1-8k",
+                    "object": "model",
+                    "created": current_time,
+                    "owned_by": "system",
                 },
-                'urlIdx': 0
+                "urlIdx": 0,
             },
             {
-                'id': 'leagent-qa',
-                'object': 'model',
-                'created': current_time,
-                'owned_by': 'openai',
-                'name': 'leagent-qa',
-                'openai': {
-                    'id': 'leagent-qa',
-                    'object': 'model',
-                    'created': current_time,
-                    'owned_by': 'system'
+                "id": "moonshot-v1-32k",
+                "object": "model",
+                "created": current_time,
+                "owned_by": "openai",
+                "name": "moonshot-v1-32k",
+                "openai": {
+                    "id": "moonshot-v1-32k",
+                    "object": "model",
+                    "created": current_time,
+                    "owned_by": "system",
                 },
-                'urlIdx': 0
             },
             {
-                'id': 'leagent-evaluation',
-                'object': 'model',
-                'created': current_time,
-                'owned_by': 'openai',
-                'name': 'leagent-evaluation',
-                'openai': {
-                    'id': 'leagent-evaluation',
-                    'object': 'model',
-                    'created': current_time,
-                    'owned_by': 'system'
+                "id": "moonshot-v1-64k",
+                "object": "model",
+                "created": current_time,
+                "owned_by": "openai",
+                "name": "moonshot-v1-64k",
+                "openai": {
+                    "id": "moonshot-v1-64k",
+                    "object": "model",
+                    "created": current_time,
+                    "owned_by": "system",
                 },
-                'urlIdx': 0
-            }
+            },
         ]
 
-        models["data"].extend(leagent_models)
+        models["data"].extend(moonshot_models)
+
+        # Add Qianfan models
+        current_time = int(time.time())
+        qianfan_models = [
+            {
+                "id": "ERNIE-4.0-8K",
+                "object": "model",
+                "created": current_time,
+                "owned_by": "openai",
+                "name": "ERNIE-4.0-8K",
+                "openai": {
+                    "id": "ERNIE-4.0-8K",
+                    "object": "model",
+                    "created": current_time,
+                    "owned_by": "system",
+                },
+                "urlIdx": 0,
+            },
+            {
+                "id": "ERNIE-4.0-8K-Preview",
+                "object": "model",
+                "created": current_time,
+                "owned_by": "openai",
+                "name": "ERNIE-4.0-8K-Preview",
+                "openai": {
+                    "id": "ERNIE-4.0-8K-Preview",
+                    "object": "model",
+                    "created": current_time,
+                    "owned_by": "system",
+                },
+            },
+            {
+                "id": "ERNIE-4.0-8K-Preview-0518",
+                "object": "model",
+                "created": current_time,
+                "owned_by": "openai",
+                "name": "ERNIE-4.0-8K-Preview-0518",
+                "openai": {
+                    "id": "ERNIE-4.0-8K-Preview-0518",
+                    "object": "model",
+                    "created": current_time,
+                    "owned_by": "system",
+                },
+            },
+            {
+                "id": "ERNIE-4.0-8K-Latest",
+                "object": "model",
+                "created": current_time,
+                "owned_by": "openai",
+                "name": "ERNIE-4.0-8K-Latest",
+                "openai": {
+                    "id": "ERNIE-4.0-8K-Latest",
+                    "object": "model",
+                    "created": current_time,
+                    "owned_by": "system",
+                },
+            },
+            {
+                "id": "ERNIE-4.0-8K-0329",
+                "object": "model",
+                "created": current_time,
+                "owned_by": "openai",
+                "name": "ERNIE-4.0-8K-0329",
+                "openai": {
+                    "id": "ERNIE-4.0-8K-0329",
+                    "object": "model",
+                    "created": current_time,
+                    "owned_by": "system",
+                },
+            },
+            {
+                "id": "ERNIE-4.0-8K-0613",
+                "object": "model",
+                "created": current_time,
+                "owned_by": "openai",
+                "name": "ERNIE-4.0-8K-0613",
+                "openai": {
+                    "id": "ERNIE-4.0-8K-0613",
+                    "object": "model",
+                    "created": current_time,
+                    "owned_by": "system",
+                },
+            },
+            {
+                "id": "ERNIE-4.0-Turbo-8K",
+                "object": "model",
+                "created": current_time,
+                "owned_by": "openai",
+                "name": "ERNIE-4.0-Turbo-8K",
+                "openai": {
+                    "id": "ERNIE-4.0-Turbo-8K",
+                    "object": "model",
+                    "created": current_time,
+                    "owned_by": "system",
+                },
+            },
+            {
+                "id": "ERNIE-4.0-Turbo-8K-Preview",
+                "object": "model",
+                "created": current_time,
+                "owned_by": "openai",
+                "name": "ERNIE-4.0-Turbo-8K-Preview",
+                "openai": {
+                    "id": "ERNIE-4.0-Turbo-8K-Preview",
+                    "object": "model",
+                    "created": current_time,
+                    "owned_by": "system",
+                },
+            },
+            {
+                "id": "ERNIE-3.5-8K",
+                "object": "model",
+                "created": current_time,
+                "owned_by": "openai",
+                "name": "ERNIE-3.5-8K",
+                "openai": {
+                    "id": "ERNIE-3.5-8K",
+                    "object": "model",
+                    "created": current_time,
+                    "owned_by": "system",
+                },
+            },
+        ]
+
+        models["data"].extend(qianfan_models)
+
+        # Add leagent models
+        # current_time = int(time.time())
+        # leagent_models = [
+        #     {
+        #         "id": "leagent-lesson-planning",
+        #         "object": "model",
+        #         "created": current_time,
+        #         "owned_by": "openai",
+        #         "name": "leagent-lesson-planning",
+        #         "openai": {
+        #             "id": "leagent-lesson-planning",
+        #             "object": "model",
+        #             "created": current_time,
+        #             "owned_by": "system",
+        #         },
+        #         "urlIdx": 0,
+        #     },
+        #     {
+        #         "id": "leagent-qa",
+        #         "object": "model",
+        #         "created": current_time,
+        #         "owned_by": "openai",
+        #         "name": "leagent-qa",
+        #         "openai": {
+        #             "id": "leagent-qa",
+        #             "object": "model",
+        #             "created": current_time,
+        #             "owned_by": "system",
+        #         },
+        #         "urlIdx": 0,
+        #     },
+        #     {
+        #         "id": "leagent-evaluation",
+        #         "object": "model",
+        #         "created": current_time,
+        #         "owned_by": "openai",
+        #         "name": "leagent-evaluation",
+        #         "openai": {
+        #             "id": "leagent-evaluation",
+        #             "object": "model",
+        #             "created": current_time,
+        #             "owned_by": "system",
+        #         },
+        #         "urlIdx": 0,
+        #     },
+        # ]
+
+        # models["data"].extend(leagent_models)
 
         log.debug(f"models: {models}")
         app.state.MODELS = {model["id"]: model for model in models["data"]}
@@ -412,6 +577,10 @@ async def generate_chat_completion(
 
     if model_id.lower().startswith("leagent"):
         return await handle_leagent_request(payload, user)
+    if model_id.lower().startswith("moonshot"):
+        return await handle_moonshot_request(payload, user)
+    if model_id.lower().startswith("ernie"):
+        return await handle_qianfan_request(payload, user)
 
     if model_info:
         if model_info.base_model_id:
@@ -621,13 +790,76 @@ async def proxy(path: str, request: Request, user=Depends(get_verified_user)):
                 r.close()
             await session.close()
 
+async def handle_moonshot_request(payload, user):
+    # Call Moonshot API
+    import os
+
+    from openai import OpenAI
+
+    api_key = os.getenv("MOONSHOT_API_KEY", "")
+    client = OpenAI(
+        api_key=api_key,
+        base_url="https://api.moonshot.cn/v1",
+    )
+
+    async def event_generator():
+        stream = client.chat.completions.create(
+            model=payload.get("model"),
+            messages=payload.get("messages", []),
+            temperature=0.3,
+            stream=True,
+        )
+        for chunk in stream:
+            if chunk.choices[0].delta.content is not None:
+                content = chunk.choices[0].delta.content
+                yield f"data: {json.dumps({'choices': [{'delta': {'content': content}}]})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Type": "text/event-stream"},
+    )
+
+
+async def handle_qianfan_request(payload, user):
+    # Call Moonshot API
+    import os
+
+    from openai import OpenAI
+
+    api_key = os.getenv("QIANFAN_API_KEY", "")
+    client = OpenAI(
+        api_key=api_key,
+        base_url="https://api.moonshot.cn/v1",
+    )
+
+    async def event_generator():
+        stream = client.chat.completions.create(
+            model=payload.get("model"),
+            messages=payload.get("messages", []),
+            temperature=0.3,
+            stream=True,
+        )
+        for chunk in stream:
+            if chunk.choices[0].delta.content is not None:
+                content = chunk.choices[0].delta.content
+                yield f"data: {json.dumps({'choices': [{'delta': {'content': content}}]})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Type": "text/event-stream"},
+    )
+
 
 async def handle_leagent_request(payload, user):
     model_id = payload.get("model")
     user_message = payload["messages"][-1]["content"] if payload["messages"] else ""
+    messages = payload.get("messages", [])
+    print(f"messages:\n{messages}")
 
     async def event_generator():
-        async for message in leagent_processing(model_id, user_message, user):
+        async for message in leagent_processing(model_id, user_message, messages, user):
             if message == "TASK_DONE":
                 yield f"data: {json.dumps({'choices': [{'message': {'role': 'assistant', 'content': 'TASK_DONE'}}]})}\n\n"
                 break
@@ -640,11 +872,17 @@ async def handle_leagent_request(payload, user):
     )
 
 
-async def leagent_processing(model_id: str, content: str, user):
+async def leagent_processing(model_id: str, content: str, messages, user):
     leagent_server_url = "http://localhost:8101/process"
     async with aiohttp.ClientSession() as session:
         async with session.post(
-            leagent_server_url, json={"model": model_id, "content": content, "user": user.dict()}
+            leagent_server_url,
+            json={
+                "model": model_id,
+                "content": content,
+                "messages": messages,
+                "user": user.dict(),
+            },
         ) as response:
             async for line in response.content:
                 if line:
